@@ -1,13 +1,14 @@
-# Implementación de regresión lineal
+# Boston Housing Regression Project
 
 **Autor:** Diego Antonio García Padilla (A01710777)
+
 **Fecha:** 31 de agosto de 2025
 
 ---
 
 ## Abstract
 
-Implementación de un modelo de regresión lineal en Python para predecir el precio de viviendas en Boston, utilizando el dataset de Boston Housing. Se realiza una limpieza y transformación de datos, seguido de la evaluación del modelo mediante métricas como MSE y R². Se discuten los resultados y se proponen mejoras para futuros trabajos.
+Implementación de un modelo de regresión lineal y otro de Random Forest en Python para predecir el precio de viviendas en Boston, utilizando el dataset de Boston Housing. Se realiza una limpieza y transformación de datos, seguido de la evaluación y optimización de los modelos usando métricas como $R^2$, $MSE$, análisis de residuos y homocedasticidad.
 
 ## 1. Introducción
 
@@ -123,7 +124,7 @@ A continuación, muestro los histogramas después de la transformación y estand
 
 Posteriormente, volví a construir mis dataframes de entrenamiento y prueba a partir de los datos estandarizados. Y los utilicé para entrenar y evaluar mis modelos.
 
-## 4. Modelado
+## 4. Regresión Lineal
 
 ### 4.1 Funciones de ayuda
 
@@ -154,16 +155,16 @@ def h(x: np.ndarray, theta: np.ndarray, b: float) -> float:
     return np.dot(x, theta) + b
 ```
 
-2. `standard_error(y_true: np.ndarray, y_pred: np.ndarray) -> float`: La función que calcula el error estándar de las predicciones.
+2. `mse(y_true: np.ndarray, y_pred: np.ndarray) -> float`: La función que calcula el error estándar de las predicciones.
 
 $$
 MSE = {\frac{1}{n} \sum_{i=1}^{n} (y_{true}^{(i)} - y_{pred}^{(i)})^2}
 $$
 
 ```python
-def standard_error(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+def mse(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     """
-    Calculate the standard error of the predictions.
+    Calculate the mean standard error of the predictions.
 
     Parameters:
     - y_true: Vector of true median housing prices in $1000s
@@ -172,7 +173,7 @@ def standard_error(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     Returns:
     - Standard error of the predictions
     """
-    return np.mean((y_true - y_pred) ** 2)
+    return float(np.mean((y_true - y_pred) ** 2))
 ```
 
 3. `gradient_descent(X: np.ndarray, y: np.ndarray, alpha: float, epochs: int) -> Tuple[np.ndarray, float, list]`: La función que implementa el algoritmo de descenso de gradiente para optimizar los parámetros del modelo y devuelve los parámetros optimizados, el sesgo y el historial de errores a lo largo de las épocas.
@@ -202,7 +203,7 @@ def gradient_descent(X: np.ndarray, y: np.ndarray, theta: np.ndarray, b: float, 
     for _ in range(epochs):
         y_pred = h(X, theta, b)
         error = y_pred - y
-        error_history.append(standard_error(y, y_pred))
+        error_history.append(mse(y, y_pred))
         theta -= (learning_rate / m) * np.dot(X.T, error)
         b -= (learning_rate / m) * np.sum(error)
     return theta, b, error_history
@@ -218,16 +219,16 @@ Primero, inicialicé los parámetros del modelo y luego llamé a la función `gr
 hypothesis_theta = np.random.randn(X_train.shape[1])
 hypothesis_bias = np.random.randn()
 learning_rate = 0.01
-EPOCHS = 10000
+EPOCHS = 2000
 
 theta, bias, error_history = gradient_descent(X_train.values, y_train.values, hypothesis_theta, hypothesis_bias, learning_rate, EPOCHS)
 ```
 
 Los resultados del entrenamiento son los siguientes:
 
-- Optimized parameters (theta): $[ 0.38465601, 2.55879081, -1.64069501, -5.41864095]$
-- Optimized bias (b): $22.796534653465173$
-- Last training error (RMSE): $4.800965932841676$
+- Optimized parameters (theta): $[ 0.37736466  2.56786854 -1.64178716 -5.4044917 ]$
+- Optimized bias (b): $22.796534608345972$
+- Last training error (MSE): $23.04935294220249$
 
 En esta gráfica se puede observar la evolución del error de entrenamiento a lo largo de las épocas.
 
@@ -249,10 +250,10 @@ Para evaluar el rendimiento del modelo, utilicé el conjunto de prueba y calcul�
 
 ```python
 y_pred = h(X_test.values, theta, bias)
-test_rmse = standard_error(y_test.values, y_pred)
+test_rmse = mse(y_test.values, y_pred)
 ```
 
-- Test error (MSE): $23.04927388830634$
+- Test error (MSE): $22.074920080958695$
 
 Además, calculé el coeficiente de determinación ($R^2$) para ambos conjuntos de datos, de entrenamiento y prueba. 
 
@@ -270,13 +271,92 @@ print("Train R^2:", train_r2)
 print("Test R^2:", test_r2)
 ```
 
-- Train R^2: $0.7346797423452396$
-- Test R^2: $0.6990937898162399$
+- Train R^2: $0.7346763076748004$
+- Test R^2: $0.6989802089891052$
 
 La diferencia entre los $R^2$ de entrenamiento y prueba es muy baja, lo que sugiere que el modelo no está sobreajustado.
 
-## 6. Conclusiones
+### 5.3 Análisis de datos atípicos e influyentes
 
-Trabajar con el dataset de Boston Housing fue retador, pero me ayudó a comprender la importancia de un buen preprocesamiento de datos y la selección de características en la construcción de modelos de machine learning.
+Para analizar el impacto de los outliers en el modelo, realicé los siguientes análisis:
 
-Gracias a este proyecto, he mejorado mis habilidades en Python y en el uso de bibliotecas como `numpy` y `pandas` para el análisis de datos. También he aprendido a implementar algoritmos de machine learning desde cero, lo que me ha dado una comprensión más profunda de su funcionamiento interno.
+- **Outliers extremos**: observaciones con residuos estandarizados > 3$\sigma$
+- **Puntos influyentes**: observaciones con alta leverage y alto residuo
+- **Cook's Distance**: puntos que superan el umbral 4/n
+
+![Análisis de datos atípicos e influyentes](img/lr_outliers.png)
+
+Los resultados fueron muy interesantes. Identífiqué tres outliers extremos, el más notorio siendo una casa de \$50,000 predicha como $22,388 (error de casi 6 STD). Sin embargo, estos casos pudieron referirse a propiedades con características únicas no capturadas por los features utilizados, como el valor histórico por ejemplo.
+
+Además de esos 3 outliers, identifiqué 7 más. Lo interesante viene al probar el modelo con y sin dichos outliers. El sentido común nos suele decir es que el modelo mejorará si eliminamos estos valores atípicos, pero en este caso pasó lo contrario.
+
+
+| Model            | N_train | R² Test  | RMSE Test | $\Delta$R² | $\Delta$RMSE |
+|------------------|---------|----------|-----------|------------|--------------|
+| With all data    | 404     | 0.699094 | 4.697509  | 0.000000   | 0.000000     |
+| Without outliers | 394     | 0.673188 | 4.895545  | -0.025906  | 0.198036     |
+
+Por esta razón, decidí mantenerlos en el modelo, ya que estos valores pueden representar variabilidad real del mercado inmobiliario y hacer el modelo más robusto ante valores atípicos.
+
+## 6. Random Forest
+
+Dado a que la regresión lineal básica tuvo limitaciones, implementé un modelo de Random Forest como alternativa. Este algoritmo se basa en construir múltiples árboles de decisión y promediando sus predicciones, siendo naturalmente robusto ante outliers y capaz de modelar interacciones complejas entre variables, algo común en el dataset de Boston Housing.
+
+Para la implementación inicial, utilicé todos los features disponibles excepto `CHAS` (categórica) y `B` (por consideraciones éticas), sin aplicar las transformaciones utilizadas en regresión lineal, ya que Random Forest no las requiere.
+
+### 6.1 Modelos iniciales
+
+Mi primer approach con Random Forest utilicé los siguientes parámetros:
+
+* `n_estimators=200`: Un número moderadamente alto para asegurar estabilidad en las predicciones sin tener un costo excesivamente alto.
+* `max_depth=15`: Profundidad suficiente para capturar patrones complejos en datos inmobiliarios con variabilidad compleja.
+* `min_samples_split=5`: Un valor bajo que permita divisiones granulares en un dataset con pocos datos (404).
+* `min_samples_leaf=2`: Mínimo conservador que evita hojas de una sola muestra.
+* `max_features='sqrt'`: Estrategia estandar que usa $\sqrt{11} \approx 3$ features por split, promoviendo diversidad mientras mantiene poder predictivo en cada división.
+
+Con estos parametros llegué a estos resultados:
+
+| Train $R^2$ | Test $R^2$ | MSE Test |
+|-------------|------------|----------|
+| $0.9542$    | $0.8639$   | $9.9770$ |
+
+Aquí noté un ligero overfitting, visible por la diferencia de  $0.09$ en $R^2$ entre train y test. Por lo que probé con otros hiperparámetros:
+
+* `max_depth=8`: Menor profundidad para evitar que el modelo se sobreajuste a los valores de entrenamiento.
+* `min_samples_split=10`: Limita la fragmentación de los árboles y generaliza las reglas.
+* `min_samples_leaf=5`: Exige más datos por hoja, lo que genera reglas más estables y robustas.
+
+Tras este cambio obtuve los siguientes resultados:
+
+| Train $R^2$ | Test $R^2$ | MSE Test  |
+|-------------|------------|-----------|
+| $0.9036$    | $0.8265$   | $12.7253$ |
+
+Si bien la diferencia entre las $R^2$ fue ligeramente menor, ambos $R^2$ disminuyeron significativamente y el error creció. Es decir, este cambio degradó el modelo.
+
+### 6.2 Optimización de hiperparámetros
+
+Con la finalidad de encontrar los mejores hiperparámetros para el modelo, utilicé la técnica de Grid Search Cross-Validation para encontrar los mejores del siguiente set predefinido y evaluarlos usando cross-validation:
+
+* `n_estimators=[150, 200]`
+* `max_depth=[8, 10, 12, 15]`
+* `min_samples_split=[5, 8, 10]`
+* `min_samples_leaf=[2, 3, 5]`
+* `max_features=['sqrt', 0.4]`
+
+Tras esto, los mejores parametros (del set) fueron los siguientes:
+
+* `n_estimators=200`
+* `max_depth=15`
+* `min_samples_split=8`
+* `min_samples_leaf=2`
+* `max_features=0.4`
+
+Estos fueron prácticamente idénticos al primer approach del modelo salvo en el `min_samples_split`. Esto quiere decir que, a pesar de que existe un ligero overfitting, reducirlo no vale la pena porque, a pesar de que el gap entre los $R^2$ sea menor, el modelo terminaría explicando menor porcentaje de la varianza.
+
+## 7. Comparación de ambos modelos
+
+![Análisis de residuos](img/residual_analysis.png)
+
+
+## 8. Conclusión
