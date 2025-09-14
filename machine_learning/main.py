@@ -35,6 +35,7 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import r2_score, mean_squared_error
+from sklearn.model_selection import GridSearchCV, cross_val_score
 from scipy import stats
 from typing import Tuple
 
@@ -547,7 +548,7 @@ print(impact_results.to_string(index=False))
 df_rf = pd.read_csv("boston.csv")
 
 # Drop categorical values
-df_rf.drop(columns=["CHAS"], inplace=True)
+df_rf.drop(columns=["CHAS", "B"], inplace=True)
 
 df_rf.head()
 #%%
@@ -561,6 +562,32 @@ df_test_rf = pd.concat([X_test_rf, y_test_rf], axis=1)
 
 print(f"Features para RF: {X_train.columns.tolist()}")
 print(f"Número de features: {X_train.shape[1]}")
+#%% md
+# #### First RF
+#%%
+rf = RandomForestRegressor(
+    n_estimators=200,
+    max_depth=15,
+    min_samples_split=5,
+    min_samples_leaf=2,
+    max_features='sqrt',
+    random_state=42,
+)
+
+rf.fit(X_train_rf, y_train_rf)
+#%%
+y_train_pred_rf = rf.predict(X_train_rf)
+y_test_pred_rf = rf.predict(X_test_rf)
+
+r2_train_rf = r2_score(y_train_rf, y_train_pred_rf)
+r2_test_rf = r2_score(y_test_rf, y_test_pred_rf)
+
+print(f"\nRandom Forest Results:")
+print(f"R² Train: {r2_train_rf}")
+print(f"R² Test: {r2_test_rf}")
+print(f"MSE Test: {mse(y_test_rf, y_test_pred_rf)}")
+#%% md
+# #### Second RF
 #%%
 rf = RandomForestRegressor(
     n_estimators=200,
@@ -583,6 +610,70 @@ print(f"\nRandom Forest Results:")
 print(f"R² Train: {r2_train_rf}")
 print(f"R² Test: {r2_test_rf}")
 print(f"MSE Test: {mse(y_test_rf, y_test_pred_rf)}")
+#%% md
+# rf = RandomForestRegressor(
+#     n_estimators=200,
+#     max_depth=8,
+#     min_samples_split=10,
+#     min_samples_leaf=5,
+#     max_features='sqrt',
+#     random_state=42,
+# )
+# 
+# rf.fit(X_train_rf, y_train_rf)
+# y_train_pred_rf = rf.predict(X_train_rf)
+# y_test_pred_rf = rf.predict(X_test_rf)
+# 
+# r2_train_rf = r2_score(y_train_rf, y_train_pred_rf)
+# r2_test_rf = r2_score(y_test_rf, y_test_pred_rf)
+# 
+# print(f"\nRandom Forest Results:")
+# print(f"R² Train: {r2_train_rf}")
+# print(f"R² Test: {r2_test_rf}")
+# print(f"MSE Test: {mse(y_test_rf, y_test_pred_rf)}")### Random Forest Optimization (Grid Search)
+#%% md
+# ### Hyperparameter fitting
+#%%
+param_grid = {
+    'n_estimators': [150, 200],
+    'max_depth': [8, 10, 12, 15],
+    'min_samples_split': [5, 8, 10],
+    'min_samples_leaf': [2, 3, 5],
+    'max_features': ['sqrt', 0.4]  # sqrt = ~3 features, 0.4 = ~4 features
+}
+
+# Grid Search cross-validation
+rf_grid = RandomForestRegressor(random_state=42)
+grid_search = GridSearchCV(
+    rf_grid,
+    param_grid,
+    cv=5,
+    scoring='r2',
+    n_jobs=-1,
+    verbose=1
+)
+
+grid_search.fit(X_train_rf, y_train_rf)
+
+# Best Model
+best_rf = grid_search.best_estimator_
+print(f"Best parameters: {grid_search.best_params_}")
+print(f"Mean R² CV: {grid_search.best_score_:.4f}")
+
+# Evaluate in test
+r2_train_best = best_rf.score(X_train_rf, y_train_rf)
+r2_test_best = best_rf.score(X_test_rf, y_test_rf)
+print(f"R² Train: {r2_train_best:.4f}")
+print(f"R² Test: {r2_test_best:.4f}")
+print(f"Gap: {r2_train_best - r2_test_best:.4f}")
+#%%
+y_train_pred_rf = best_rf.predict(X_train_rf)
+y_test_pred_rf = best_rf.predict(X_test_rf)
+
+r2_train_rf = r2_score(y_train_rf, y_train_pred_rf)
+r2_test_rf = r2_score(y_test_rf, y_test_pred_rf)
+#%%
+mean_squared_error(y_test_rf, y_test_pred_rf)
 #%% md
 # ## Model Comparison
 #%% md

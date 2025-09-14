@@ -8,7 +8,7 @@
 
 ## Abstract
 
-Implementación de un modelo de regresión lineal y otro de Random Forest en Python para predecir el precio de viviendas en Boston, utilizando el dataset de Boston Housing. Se realiza una limpieza y transformación de datos, seguido de la evaluación y optimización de los modelos usando métricas como $R^2$, $MSE$, análisis de residuos y homocedasticidad.
+Implementación de un modelo de regresión lineal y otro de Random Forest en Python para predecir el precio de viviendas en Boston, utilizando el dataset de Boston Housing. Se realiza una limpieza y transformación de datos, seguido de la evaluación y optimización de los modelos usando métricas como $ R^2 $, $ MSE $, análisis de residuos y homocedasticidad.
 
 ## 1. Introducción
 
@@ -77,7 +77,7 @@ Esta fue la parte más retadora del proceso. Para empezar, analicé la correlaci
 
 A partir de esto, a pesar de que el $p_{value}$ de todos los features demostraba que eran estadísticamente significativos, decidí realizar una selección de los features más relevantes a partir de su correlación con la variable objetivo `MEDV`.
 
-Con base en esto, eliminé aquellos features que tenían una $|corr| < 0.4$: `CRIM`, `ZN`, `AGE`, `DIS`, `RAD` y `B`.
+Con base en esto, eliminé aquellos features que tenían una $ |corr| < 0.4 $: `CRIM`, `ZN`, `AGE`, `DIS`, `RAD` y `B`.
 
 Posteriormente, volví a graficar la matriz de correlación y $p_{value}$ de los features restantes, para analizar posibles multicolinealidades.
 
@@ -255,11 +255,11 @@ test_rmse = mse(y_test.values, y_pred)
 
 - Test error (MSE): $22.074920080958695$
 
-Además, calculé el coeficiente de determinación ($R^2$) para ambos conjuntos de datos, de entrenamiento y prueba. 
+Además, calculé el coeficiente de determinación ($ R^2 $) para ambos conjuntos de datos, de entrenamiento y prueba. 
 
 Esto puede ayudar a entender mejor el rendimiento del modelo, ya que indica la proporción de la varianza en la variable dependiente que es predecible a partir de las variables independientes.
 
-Además, si tenemos $R^2$ muy distintas entre el conjunto de entrenamiento y el de prueba, esto puede ser un indicativo de sobreajuste.
+Además, si tenemos $ R^2 $ muy distintas entre el conjunto de entrenamiento y el de prueba, esto puede ser un indicativo de sobreajuste.
 
 ```python
 from sklearn.metrics import r2_score
@@ -274,13 +274,13 @@ print("Test R^2:", test_r2)
 - Train R^2: $0.7346763076748004$
 - Test R^2: $0.6989802089891052$
 
-La diferencia entre los $R^2$ de entrenamiento y prueba es muy baja, lo que sugiere que el modelo no está sobreajustado.
+La diferencia entre los $ R^2 $ de entrenamiento y prueba es muy baja, lo que sugiere que el modelo no está sobreajustado.
 
 ### 5.3 Análisis de datos atípicos e influyentes
 
 Para analizar el impacto de los outliers en el modelo, realicé los siguientes análisis:
 
-- **Outliers extremos**: observaciones con residuos estandarizados > 3$\sigma$
+- **Outliers extremos**: observaciones con residuos estandarizados > 3 $ \sigma $
 - **Puntos influyentes**: observaciones con alta leverage y alto residuo
 - **Cook's Distance**: puntos que superan el umbral 4/n
 
@@ -356,7 +356,75 @@ Estos fueron prácticamente idénticos al primer approach del modelo salvo en el
 
 ## 7. Comparación de ambos modelos
 
+Para evaluar objetivamente la mejora, analicé algunas métricas y aspectos de ambos modelos
+
+| Metrica | Regresión Lineal | Random Forest | Mejora |
+|---------|------------------|---------------|--------|
+| R² Test | 0.699            | 0.853         | +22%   |
+| MSE     | 23.05            | 10.742        | -53.4% |
+
+### 7.1 Análisis de residuos
+
+Este analisis reveló algunas diferencias entre ambos modelos:
+
 ![Análisis de residuos](img/residual_analysis.png)
 
+**Regresión Lineal:**
+
+  * Media de residuos: $555 (sesgo sistemático hacia subestimación)
+  * Distribución con cola derecha pesada
+  * Falla dramáticamente en propiedades de alto valor (>$35k)
+
+Aquí podemos observar cierto patrón. El modelo subestima los precios, particularmente en el segmento más caro del mercado. Esto sugiere que las relaciones lineales asumidas no capturan la dinámica real de valoración en propiedades de alto valor, donde factores como ubicación exclusiva o características arquitectónicas únicas tienen efectos multiplicativos en lugar de aditivos.
+
+**Random Forest:**
+
+  * Media de residuos: $58 (prácticamente sin sesgo)
+  * Distribución más simétrica y concentrada
+  * Mantiene precisión consistente en todo el rango de precios
+
+La distribución de residuos en Random Forest es notablemente más normal. La media en $58 indica que el modelo no tiene sesgos sistemáticos en sus errores, mientras que la menor dispersión sugiere predicciones más consistentes.
+
+### 7.2 Homocedasticidad
+
+La homocedasticidad representa la constancia de la varianza de los errores en todos los niveles de predicción, es un supuesto fundamental para la confiabilidad de los intervalos de predicción.
+
+Para analizarla, realicé el test de Breusch-Pagan, el cual analiza que no exista relación entre los residuos y las variables X. Este test trabaja con las siguientes hipótesis:
+
+* $H_0$: Hay homocedasticidad (los errores tienen varianza constante)
+* $H_a$: Hay heterocedasticidad (la varianza de los errores cambia)
+
+Por lo tanto, buscamos que un buen modelo tenga un $p_{value}$ alto (mayor a $0.05$ si trabajamos con un intervalo de confianza de 95%).
+
+![Homocedasticidad](img/homocedasticity.png)
+
+| Modelo            | $p_{value}$ |
+|-------------------|-------------|
+| Linear Regression | 0.9841      |
+| Random Forest     | 0.1472      |
+
+Aunque ambos modelos pasan el test estadístico, el análisis gráfico reveló una historia más matizada.
+
+**Regresión Lineal:**
+
+A pesar del $p_{value}$ alto, el gráfico de residuos vs valores predichos mostró un patrón problemático. En el rango de predicciones bajas (\$5-15k) y altas (\$35-45k), los residuos presentan mayor dispersión. Específicamente, identifiqué tres casos extremos con residuos superiores a 3 $\sigma$, siendo el más notable una propiedad de \$50,000 predicha en $22,388.  Este patrón sugiere que, aunque estadísticamente homocedástico en promedio, el modelo tiene ciertos intervalos donde su confiabilidad disminuye drásticamente, mostrando que, probablemente el precio de las casas no es tan lineal como parece.
+
+**Random Forest:**
+
+El modelo presenta una distribución de residuos más uniforme en todo el rango de predicción. Las bandas de $\pm 2 \sigma$ contienen consistentemente la mayoría de los residuos, sin los picos extremos observados en regresión lineal. Esto se traduce en intervalos de confianza más confiables.
 
 ## 8. Conclusión
+
+Este proyecto demostró la importancia del preprocesamiento de datos y la selección del modelo apropiado para el problema en cuestión. Implementé y comparé dos enfoques distintos: regresión lineal desarrollada desde cero y Random Forest utilizando `scikit-learn`, cada uno con sus fortalezas y limitaciones particulares.
+
+El proceso de ETL resultó fundamental para ambos modelos, aunque de maneras diferentes. Para la regresión lineal, la eliminación estratégica de features correlacionados (`TAX`, `INDUS`) y las transformaciones apropiadas (logarítmica para `LSTAT`, winsorización para `NOX`) permitieron obtener un modelo sin overfitting significativo, con una diferencia de apenas 3.6% entre $R^2$ de entrenamiento y prueba. Sin embargo, estos mismos preprocesos no fueron necesarios para Random Forest, que manejó naturalmente las distribuciones sesgadas y la multicolinealidad.
+
+Un detalle interesante fue el comportamiento de los outliers. Contrario a la intuición inicial, eliminar los 10 outliers identificados empeoró el modelo de regresión lineal, reduciendo el $R^2$ de test de 0.699 a 0.673. Esto sugiere que estos valores atípicos representan variabilidad real del mercado inmobiliario y features no considerados en el dataset, como valor histórico, ubicaciones excepcionales o características arquitectónicas únicas.
+
+En lo que respecta a los modelos, Random Forest fue el claro ganador con una mejora del 22% en $R^2$ y una reducción del 53% en MSE.Además, mientras la regresión lineal presentó un sesgo sistemático de \$556 hacia la subestimación, Random Forest mantuvo una media de residuos de apenas \$58. Esta diferencia es crucial en aplicaciones prácticas donde un error de \$27,600 (máximo en regresión lineal) versus \$9,200 (máximo en Random Forest) puede tener consecuencias financieras significativas.
+
+Siguendo con lo anterior, el análisis de homocedasticidad también mostró algo interesante. Aunque ambos modelos pasaron el test de Breusch-Pagan, el análisis gráfico mostró que la regresión lineal falla catastróficamente en propiedades de alto valor, mientras Random Forest mantiene errores controlados en todo el rango.
+
+Gracias a este proyecto, comprendí que para seleccionar un buen modelo se debe considerar no solo métricas de precisión sino también la naturaleza del problema. La interpretabilidad de la regresión lineal puede ser valiosa en contextos más regulatorios, mientras que la precisión de Random Forest es preferible para valoraciones comerciales. Además, este proyecto reforzó mis aprendizajes sobre que el machine learning exitoso requiere tanto rigor matemático como comprensión del dominio. Por ejemplo, es importante saber cuándo un outlier es un error versus una observación valiosa marca la diferencia entre un modelo académico y uno útil en producción.
+
+Este proyecto confirmó que no existe un modelo universalmente superior, la elección depende del balance deseado entre interpretabilidad, precisión y robustez. En el caso del mercado inmobiliario, donde las relaciones no lineales y las interacciones complejas dominan, Random Forest demostró ser la herramienta más apropiada.
