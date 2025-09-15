@@ -42,32 +42,66 @@ from typing import Tuple
 from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor
 #%%
+print("=" * 60)
+print("SETTING RANDOM SEED FOR REPRODUCIBILITY")
+print("=" * 60)
 np.random.seed(42)
+print("Random seed set to 42")
+print()
 #%% md
 # ## ETL Process
 #%% md
 # ### Extract
 #%%
+print("=" * 60)
+print("DATA EXTRACTION - LOADING BOSTON HOUSING DATASET")
+print("=" * 60)
 # Load data
 df = pd.read_csv("boston.csv")
-
-df.head()
+print(f"Dataset loaded successfully!")
+print(f"Dataset shape: {df.shape}")
+print(f"Columns: {list(df.columns)}")
+print("\nFirst 5 rows:")
+print(df.head())
+print()
 #%% md
 # ### Transform
 #%% md
 # First, I will check the data types of the features to ensure they are appropriate for the analysis.
 #%%
-df.describe().T
+print("=" * 60)
+print("DATA INSPECTION - DESCRIPTIVE STATISTICS")
+print("=" * 60)
+print("Statistical summary of all features:")
+print(df.describe().T)
+print()
 #%% md
 # Everything seems to be in order with the data types, except for CHAS, which is currently of type `int64`. Since this is a categorical variable and I want to do a linear regression analysis, I will remove it from the dataset.
 # 
 #%%
+print("=" * 60)
+print("DATA TRANSFORMATION - REMOVING CATEGORICAL VARIABLES")
+print("=" * 60)
+print("Removing CHAS column (categorical variable not suitable for linear regression)")
 df.drop(columns=["CHAS"], inplace=True)
+print(f"CHAS column removed. New shape: {df.shape}")
+print()
 #%% md
 # Then, I will drop missing values from the dataset to ensure a complete case analysis.
 #%%
+print("=" * 60)
+print("DATA CLEANING - HANDLING MISSING VALUES")
+print("=" * 60)
+print(f"Checking for missing values...")
+print(f"Missing values per column:")
+print(df.isnull().sum())
 # Drop missing values if any
+original_shape = df.shape
 df = df.dropna()
+print(f"\nOriginal shape: {original_shape}")
+print(f"Shape after dropping missing values: {df.shape}")
+print(f"Rows removed: {original_shape[0] - df.shape[0]}")
+print()
 #%% md
 # #### Correlation and $p_{values}$
 #%% md
@@ -96,27 +130,57 @@ def plot_correlation_and_p_values(df):
     sns.heatmap(p_value_matrix(df).astype(float), annot=True, fmt=".2f", cmap="coolwarm", cbar_kws={'label': 'p-value'}, ax=axes[1])
     axes[1].set_title("P-value Matrix")
 
+print("=" * 60)
+print("CORRELATION AND P-VALUES ANALYSIS")
+print("=" * 60)
+print("Generating correlation matrix and p-value matrix...")
 plot_correlation_and_p_values(df)
+print("Correlation and p-value matrices displayed above.")
+print()
 #%% md
 # With p-values that small, I will use correlation coefficients to identify the most important features for predicting the target variable.
 # 
 # If the absolute value of the correlation coefficient is greater than 0.4, I will consider the feature important for prediction.
 # 
 #%%
+print("=" * 60)
+print("FEATURE SELECTION - REMOVING LOW CORRELATION FEATURES")
+print("=" * 60)
+print("Removing features with correlation coefficient < 0.4:")
+features_to_drop = ["CRIM", "ZN", "AGE", "DIS", "RAD", "B"]
+print(f"Features to be removed: {features_to_drop}")
 # Drop irrelevant features
 df.drop(columns=["CRIM", "ZN", "AGE", "DIS","RAD", "B"], inplace=True)
-
-df.head()
+print(f"\nFeatures after removal: {list(df.columns)}")
+print(f"New dataset shape: {df.shape}")
+print("\nFirst 5 rows after feature selection:")
+print(df.head())
+print()
 #%% md
 # I still have to check if there is any collinearity between the features. I can do this by looking at the correlation matrix and identifying any pairs of features with a high correlation coefficient (e.g., above 0.8 or below -0.8).
 # 
 #%%
+print("=" * 60)
+print("MULTICOLLINEARITY CHECK")
+print("=" * 60)
+print("Checking for multicollinearity among remaining features...")
 plot_correlation_and_p_values(df)
+print("Updated correlation and p-value matrices displayed above.")
+print()
 #%% md
 # I'll drop INDUS and TAX because it has a very strong correlation with NOX.
 # 
 #%%
+print("=" * 60)
+print("REMOVING MULTICOLLINEAR FEATURES")
+print("=" * 60)
+print("Removing INDUS and TAX due to high correlation with NOX...")
+multicollinear_features = ["INDUS", "TAX"]
+print(f"Features to be removed: {multicollinear_features}")
 df.drop(columns=["INDUS", "TAX"], inplace=True)
+print(f"\nFinal features: {list(df.columns)}")
+print(f"Final dataset shape: {df.shape}")
+print()
 #%% md
 # #### Data splitting
 # 
@@ -134,33 +198,53 @@ df_test = pd.concat([X_test, y_test], axis=1)
 #%% md
 # Now we can visualize the distribution of the target variable in the training set.
 #%%
+print("=" * 60)
+print("DATA DISTRIBUTION VISUALIZATION (BEFORE PREPROCESSING)")
+print("=" * 60)
+print("Displaying histograms of training data before preprocessing...")
 df_train.hist(bins=30, figsize=(12, 8), layout=(2, 3), edgecolor='black')
 plt.tight_layout()
 plt.show()
+print("Histograms displayed above show distributions before preprocessing.")
+print()
 #%% md
 # As we can see, there are a lot of outliers in the training set. 
 # 
 # - LSTAT is skewed to the right, with a long tail. I will use log transformation.
 # - NOX is also skewed. I will use winsorization to cap the values at the 5th and 95th percentiles.
 #%%
+print("=" * 60)
+print("OUTLIER TREATMENT - LOG TRANSFORMATION OF LSTAT")
+print("=" * 60)
 # Log-transformation of LSTAT
-print(f"Bias LSTAT before: {stats.skew(df_train['LSTAT']):.2f}")
+print(f"Bias LSTAT before transformation: {stats.skew(df_train['LSTAT']):.2f}")
+print("Applying log transformation to LSTAT (log1p)...")
 
 df_train['LSTAT'] = np.log1p(df_train['LSTAT'])
 df_test['LSTAT'] = np.log1p(df_test['LSTAT'])
 
-print(f"Bias LSTAT after: {stats.skew(df_train['LSTAT']):.2f}")
+print(f"Bias LSTAT after transformation: {stats.skew(df_train['LSTAT']):.2f}")
+print("Log transformation completed.")
+print()
 #%%
+print("=" * 60)
+print("OUTLIER TREATMENT - WINSORIZATION OF NOX")
+print("=" * 60)
 # Winsorize NOX
-print(f"Bias NOX before: {stats.skew(df_train['NOX']):.2f}")
+print(f"Bias NOX before winsorization: {stats.skew(df_train['NOX']):.2f}")
+print("Applying winsorization to NOX (5th and 95th percentiles)...")
 
 lower_bound = df_train["NOX"].quantile(0.05)
 upper_bound = df_train["NOX"].quantile(0.95)
+print(f"Lower bound (5th percentile): {lower_bound:.4f}")
+print(f"Upper bound (95th percentile): {upper_bound:.4f}")
 
 df_train["NOX"] = df_train["NOX"].clip(lower=lower_bound, upper=upper_bound)
 df_test["NOX"] = df_test["NOX"].clip(lower=lower_bound, upper=upper_bound)
 
-print(f"Bias NOX after: {stats.skew(df_train['NOX']):.2f}")
+print(f"Bias NOX after winsorization: {stats.skew(df_train['NOX']):.2f}")
+print("Winsorization completed.")
+print()
 #%%
 # Reset index
 df_train.reset_index(drop=True, inplace=True)
@@ -176,14 +260,25 @@ y_test = df_test['MEDV']
 df_train = pd.concat([X_train, y_train], axis=1)
 df_test = pd.concat([X_test, y_test], axis=1)
 #%%
+print("=" * 60)
+print("DATA DISTRIBUTION VISUALIZATION (AFTER PREPROCESSING)")
+print("=" * 60)
+print("Displaying histograms after outlier treatment...")
 df_train.hist(bins=30, figsize=(12, 8), layout=(2, 3), edgecolor='black')
 plt.tight_layout()
 plt.show()
+print("Histograms show improved distributions after preprocessing.")
+print()
 #%% md
 # #### Standarization (z-score)
 #%%
+print("=" * 60)
+print("FEATURE STANDARDIZATION (Z-SCORE)")
+print("=" * 60)
+print("Applying StandardScaler to normalize features...")
 scaler_X = StandardScaler()
 
+print("Fitting scaler on training data and transforming both sets...")
 X_train = pd.DataFrame(scaler_X.fit_transform(X_train))
 X_test = pd.DataFrame(scaler_X.transform(X_test))
 
@@ -191,10 +286,20 @@ df_train = pd.concat([X_train, y_train], axis=1)
 df_train.columns = df.columns
 df_test = pd.concat([X_test, y_test], axis=1)
 df_test.columns = df.columns
+print(f"Features standardized. Mean ≈ 0, Std ≈ 1")
+print(f"Training data shape: {df_train.shape}")
+print(f"Testing data shape: {df_test.shape}")
+print()
 #%%
+print("=" * 60)
+print("FINAL DATA DISTRIBUTION (AFTER STANDARDIZATION)")
+print("=" * 60)
+print("Displaying final histograms after standardization...")
 df_train.hist(bins=30, figsize=(12, 8), layout=(2, 3), edgecolor='black')
 plt.tight_layout()
 plt.show()
+print("Features are now standardized (mean ≈ 0, std ≈ 1).")
+print()
 #%% md
 # ## Linear Regression (without framework)
 #%% md
@@ -257,17 +362,34 @@ def gradient_descent(X: np.ndarray, y: np.ndarray, theta: np.ndarray, b: float, 
 #%% md
 # ### Model training
 #%%
+print("=" * 60)
+print("LINEAR REGRESSION MODEL TRAINING")
+print("=" * 60)
+print("Initializing model parameters...")
 hypothesis_theta = np.random.randn(X_train.shape[1])
 hypothesis_bias = np.random.randn()
 learning_rate = 0.01
 EPOCHS = 2000
 
+print(f"Initial parameters:")
+print(f"  - Learning rate: {learning_rate}")
+print(f"  - Epochs: {EPOCHS}")
+print(f"  - Number of features: {X_train.shape[1]}")
+print(f"  - Training samples: {X_train.shape[0]}")
+print("\nStarting gradient descent optimization...")
+
 theta, bias, error_history = gradient_descent(X_train.values, y_train.values, hypothesis_theta, hypothesis_bias, learning_rate, EPOCHS)
 
-print("Optimized parameters (theta):", theta)
-print("Optimized bias (b):", bias)
-print("Last training error (MSE):", error_history[-1])
+print("\nTraining completed!")
+print(f"Optimized parameters (theta): {theta}")
+print(f"Optimized bias (b): {bias:.4f}")
+print(f"Final training error (MSE): {error_history[-1]:.4f}")
+print()
 #%%
+print("=" * 60)
+print("TRAINING ERROR VISUALIZATION")
+print("=" * 60)
+print("Plotting training error evolution over epochs...")
 plt.figure(figsize=(10, 6))
 plt.plot(range(EPOCHS), error_history, label="Training Error")
 plt.xlabel("Epochs")
@@ -275,16 +397,30 @@ plt.ylabel("MSE")
 plt.title("Training Error Over Time")
 plt.legend()
 plt.show()
+print(f"Initial error: {error_history[0]:.4f}")
+print(f"Final error: {error_history[-1]:.4f}")
+print(f"Error reduction: {((error_history[0] - error_history[-1]) / error_history[0] * 100):.2f}%")
+print()
 #%% md
 # ### Model testing
 #%% md
 # #### Prueba con test
 #%%
+print("=" * 60)
+print("MODEL EVALUATION - PREDICTIONS AND TEST ERROR")
+print("=" * 60)
+print("Generating predictions for training and test sets...")
 y_train_pred_lr = h(X_train.values, theta, bias)
 y_test_pred_lr = h(X_test.values, theta, bias)
 test_error = mse(y_test.values, y_test_pred_lr)
+train_error = mse(y_train.values, y_train_pred_lr)
 
-print(f'Test Error: {test_error}')
+print(f"Training Error (MSE): {train_error:.4f}")
+print(f"Test Error (MSE): {test_error:.4f}")
+print(f"Training RMSE: {np.sqrt(train_error):.4f}")
+print(f"Test RMSE: {np.sqrt(test_error):.4f}")
+print(f"Overfitting check - Test/Train error ratio: {test_error/train_error:.3f}")
+print()
 #%%
 fig, axes = plt.subplots(2, 2, figsize=(20, 12))
 
@@ -317,12 +453,21 @@ plt.show()
 #%% md
 # #### $R^2$
 #%%
+print("=" * 60)
+print("MODEL PERFORMANCE METRICS - R² SCORES")
+print("=" * 60)
+print("Calculating R² scores for model evaluation...")
 r2_train_lr = r2_score(y_train, y_train_pred_lr)
 r2_test_lr = r2_score(y_test, y_test_pred_lr)
+mse_train = mse(y_train, y_train_pred_lr)
 
-print(f'R² Train: {r2_train_lr}')
-print(f'R² Test: {r2_test_lr}')
-print(f'MSE: {mse(y_train, y_train_pred_lr)}')
+print(f"\nLinear Regression Performance:")
+print(f"  R² Train: {r2_train_lr:.4f}")
+print(f"  R² Test: {r2_test_lr:.4f}")
+print(f"  MSE Train: {mse_train:.4f}")
+print(f"  MSE Test: {test_error:.4f}")
+print(f"  Model generalization: {'Good' if abs(r2_train_lr - r2_test_lr) < 0.1 else 'Potential overfitting'}")
+print()
 
 #%% md
 # ### Analysis of Outliers and Influential Points
@@ -544,51 +689,110 @@ print(impact_results.to_string(index=False))
 #%% md
 # ## Random Forest
 #%%
+print("=" * 80)
+print("RANDOM FOREST IMPLEMENTATION - DATA PREPARATION")
+print("=" * 80)
+print("Loading fresh dataset for Random Forest (using all features)...")
 # Reload data
 df_rf = pd.read_csv("boston.csv")
+print(f"Dataset loaded. Shape: {df_rf.shape}")
 
+print("Removing categorical and problematic features...")
 # Drop categorical values
 df_rf.drop(columns=["CHAS", "B"], inplace=True)
-
-df_rf.head()
+print(f"Features removed: ['CHAS', 'B']")
+print(f"New shape: {df_rf.shape}")
+print(f"Features for Random Forest: {list(df_rf.columns)}")
+print("\nFirst 5 rows:")
+print(df_rf.head())
+print()
 #%%
+print("=" * 60)
+print("RANDOM FOREST - DATA SPLITTING")
+print("=" * 60)
+print("Preparing features and target variable...")
 X_rf = df_rf.drop("MEDV", axis=1)
 y_rf = df_rf["MEDV"]
+print(f"Feature matrix shape: {X_rf.shape}")
+print(f"Target vector shape: {y_rf.shape}")
 
+print("\nSplitting data for Random Forest (80/20 split)...")
 X_train_rf, X_test_rf, y_train_rf, y_test_rf = train_test_split(X_rf, y_rf, test_size=0.2, random_state=42)
 
 df_train_rf = pd.concat([X_train_rf, y_train_rf], axis=1)
 df_test_rf = pd.concat([X_test_rf, y_test_rf], axis=1)
 
-print(f"Features para RF: {X_train.columns.tolist()}")
-print(f"Número de features: {X_train.shape[1]}")
+print(f"Training set: {X_train_rf.shape}")
+print(f"Test set: {X_test_rf.shape}")
+print(f"Features for Random Forest: {list(X_rf.columns)}")
+print(f"Number of features: {X_rf.shape[1]}")
+print()
 #%% md
 # #### First RF
 #%%
-rf = RandomForestRegressor(
-    n_estimators=200,
-    max_depth=15,
-    min_samples_split=5,
-    min_samples_leaf=2,
-    max_features='sqrt',
-    random_state=42,
-)
+print("=" * 60)
+print("RANDOM FOREST MODEL #1 - INITIAL CONFIGURATION")
+print("=" * 60)
+print("Training first Random Forest model...")
+rf_config = {
+    'n_estimators': 200,
+    'max_depth': 15,
+    'min_samples_split': 5,
+    'min_samples_leaf': 2,
+    'max_features': 'sqrt',
+    'random_state': 42
+}
+print("Configuration:")
+for key, value in rf_config.items():
+    print(f"  {key}: {value}")
 
+rf = RandomForestRegressor(**rf_config)
+print("\nTraining Random Forest...")
 rf.fit(X_train_rf, y_train_rf)
+print("Training completed!")
+print()
 #%%
+print("=" * 60)
+print("RANDOM FOREST MODEL #1 - EVALUATION")
+print("=" * 60)
+print("Generating predictions and evaluating model performance...")
 y_train_pred_rf = rf.predict(X_train_rf)
 y_test_pred_rf = rf.predict(X_test_rf)
 
 r2_train_rf = r2_score(y_train_rf, y_train_pred_rf)
 r2_test_rf = r2_score(y_test_rf, y_test_pred_rf)
 
-print(f"\nRandom Forest Results:")
-print(f"R² Train: {r2_train_rf}")
-print(f"R² Test: {r2_test_rf}")
-print(f"MSE Test: {mse(y_test_rf, y_test_pred_rf)}")
+print("\nRandom Forest Model #1 Results:")
+print(f"  R² Training Score: {r2_train_rf:.4f}")
+print(f"  R² Test Score: {r2_test_rf:.4f}")
+print(f"  Test MSE: {mse(y_test_rf, y_test_pred_rf):.4f}")
+print(f"  Test RMSE: {np.sqrt(mse(y_test_rf, y_test_pred_rf)):.4f}")
+print(f"  Overfitting check (Train-Test gap): {r2_train_rf - r2_test_rf:.4f}")
+print()
 #%% md
 # #### Second RF
 #%%
+print("=" * 60)
+print("RANDOM FOREST MODEL #2 - MODIFIED CONFIGURATION")
+print("=" * 60)
+print("Training second Random Forest model with adjusted parameters...")
+rf_config_2 = {
+    'n_estimators': 200,
+    'max_depth': 8,
+    'min_samples_split': 10,
+    'min_samples_leaf': 5,
+    'max_features': 'sqrt',
+    'random_state': 42
+}
+print("Modified configuration (reduced complexity to prevent overfitting):")
+for key, value in rf_config_2.items():
+    print(f"  {key}: {value}")
+print("\nKey changes from Model #1:")
+print("  - Reduced max_depth: 15 → 8 (less complex trees)")
+print("  - Increased min_samples_split: 5 → 10 (more conservative splits)")
+print("  - Increased min_samples_leaf: 2 → 5 (require more samples per leaf)")
+print()
+print("Training Random Forest Model #2...")
 rf = RandomForestRegressor(
     n_estimators=200,
     max_depth=8,
@@ -599,17 +803,28 @@ rf = RandomForestRegressor(
 )
 
 rf.fit(X_train_rf, y_train_rf)
+print("Training completed!")
+print()
 #%%
+print("=" * 60)
+print("RANDOM FOREST MODEL #2 - EVALUATION")
+print("=" * 60)
+print("Generating predictions and evaluating model performance...")
 y_train_pred_rf = rf.predict(X_train_rf)
 y_test_pred_rf = rf.predict(X_test_rf)
 
 r2_train_rf = r2_score(y_train_rf, y_train_pred_rf)
 r2_test_rf = r2_score(y_test_rf, y_test_pred_rf)
 
-print(f"\nRandom Forest Results:")
-print(f"R² Train: {r2_train_rf}")
-print(f"R² Test: {r2_test_rf}")
-print(f"MSE Test: {mse(y_test_rf, y_test_pred_rf)}")
+print("\nRandom Forest Model #2 Results:")
+print(f"  R² Training Score: {r2_train_rf:.4f}")
+print(f"  R² Test Score: {r2_test_rf:.4f}")
+print(f"  Test MSE: {mse(y_test_rf, y_test_pred_rf):.4f}")
+print(f"  Test RMSE: {np.sqrt(mse(y_test_rf, y_test_pred_rf)):.4f}")
+print(f"  Overfitting check (Train-Test gap): {r2_train_rf - r2_test_rf:.4f}")
+print()
+print("Performance comparison will be shown after hyperparameter optimization.")
+print()
 #%% md
 # rf = RandomForestRegressor(
 #     n_estimators=200,
@@ -634,6 +849,13 @@ print(f"MSE Test: {mse(y_test_rf, y_test_pred_rf)}")
 #%% md
 # ### Hyperparameter fitting
 #%%
+print("=" * 80)
+print("RANDOM FOREST HYPERPARAMETER OPTIMIZATION - GRID SEARCH")
+print("=" * 80)
+print("Performing comprehensive hyperparameter optimization using GridSearchCV...")
+print("This process will evaluate multiple parameter combinations to find optimal settings.")
+print()
+print("Parameter grid configuration:")
 param_grid = {
     'n_estimators': [150, 200],
     'max_depth': [8, 10, 12, 15],
@@ -641,6 +863,16 @@ param_grid = {
     'min_samples_leaf': [2, 3, 5],
     'max_features': ['sqrt', 0.4]  # sqrt = ~3 features, 0.4 = ~4 features
 }
+
+for param, values in param_grid.items():
+    print(f"  {param}: {values}")
+print(f"\nTotal combinations to evaluate: {np.prod([len(values) for values in param_grid.values()])}")
+print()
+
+print("Setting up GridSearchCV with 5-fold cross-validation...")
+print("Optimization metric: R² score")
+print("Using all available CPU cores for parallel processing...")
+print()
 
 # Grid Search cross-validation
 rf_grid = RandomForestRegressor(random_state=42)
@@ -653,19 +885,33 @@ grid_search = GridSearchCV(
     verbose=1
 )
 
+print("Starting hyperparameter optimization...")
+print("This may take several minutes depending on your hardware...")
+print()
 grid_search.fit(X_train_rf, y_train_rf)
+print("Grid search completed!")
+print()
 
 # Best Model
+print("=" * 60)
+print("OPTIMIZED RANDOM FOREST - BEST MODEL RESULTS")
+print("=" * 60)
 best_rf = grid_search.best_estimator_
-print(f"Best parameters: {grid_search.best_params_}")
-print(f"Mean R² CV: {grid_search.best_score_:.4f}")
+print("Grid search optimization results:")
+print(f"  Best parameters found: {grid_search.best_params_}")
+print(f"  Mean R² from 5-fold CV: {grid_search.best_score_:.4f}")
+print()
 
+print("Evaluating optimized model on test set...")
 # Evaluate in test
 r2_train_best = best_rf.score(X_train_rf, y_train_rf)
 r2_test_best = best_rf.score(X_test_rf, y_test_rf)
-print(f"R² Train: {r2_train_best:.4f}")
-print(f"R² Test: {r2_test_best:.4f}")
-print(f"Gap: {r2_train_best - r2_test_best:.4f}")
+print("\nOptimized Random Forest Performance:")
+print(f"  R² Training Score: {r2_train_best:.4f}")
+print(f"  R² Test Score: {r2_test_best:.4f}")
+print(f"  Train-Test Gap: {r2_train_best - r2_test_best:.4f}")
+print(f"  Generalization: {'Excellent' if r2_train_best - r2_test_best < 0.05 else 'Good' if r2_train_best - r2_test_best < 0.1 else 'Potential overfitting'}")
+print()
 #%%
 y_train_pred_rf = best_rf.predict(X_train_rf)
 y_test_pred_rf = best_rf.predict(X_test_rf)
@@ -679,11 +925,18 @@ mean_squared_error(y_test_rf, y_test_pred_rf)
 #%% md
 # ### Residuals Analysis
 #%%
+print("=" * 80)
+print("MODEL COMPARISON - RESIDUALS ANALYSIS")
+print("=" * 80)
+print("Comparing residual distributions between Linear Regression and Random Forest...")
 fig, axes = plt.subplots(2, 2, figsize=(14, 10))
 
 # LR Residuals
 residuals_lr = y_test - y_test_pred_lr
 residuals_rf = y_test_rf - y_test_pred_rf
+
+print(f"Linear Regression residuals - Mean: {np.mean(residuals_lr):.4f}, Std: {np.std(residuals_lr):.4f}")
+print(f"Random Forest residuals - Mean: {np.mean(residuals_rf):.4f}, Std: {np.std(residuals_rf):.4f}")
 
 # Histograms
 axes[0,0].hist(residuals_lr, bins=30, edgecolor='black', alpha=0.7, color='blue')
@@ -708,6 +961,8 @@ axes[1,1].set_title('Q-Q Plot - Random Forest', fontsize=12)
 plt.suptitle('Residuals Analysis', fontsize=16, fontweight='bold')
 plt.tight_layout()
 plt.show()
+print("Residuals analysis plots displayed above.")
+print()
 #%% md
 # ### Homoscedasticity
 #%%
@@ -755,6 +1010,15 @@ def breusch_pagan_test(y_true, y_pred):
 bp_lr = breusch_pagan_test(y_test, y_test_pred_lr)
 bp_rf = breusch_pagan_test(y_test_rf, y_test_pred_rf)
 
-print(f"Breusch-Pagan Test for Heteroscedasticity:")
-print(f"Linear Regression p-value: {bp_lr:.4f} {'(Heteroscedastic)' if bp_lr < 0.05 else '(Homoscedastic)'}")
-print(f"Random Forest p-value: {bp_rf:.4f} {'(Heteroscedastic)' if bp_rf < 0.05 else '(Homoscedastic)'}")
+print("=" * 60)
+print("STATISTICAL TESTS - HOMOSCEDASTICITY")
+print("=" * 60)
+print(f"Breusch-Pagan Test Results:")
+print(f"  Linear Regression p-value: {bp_lr:.4f} {'(Heteroscedastic - variance not constant)' if bp_lr < 0.05 else '(Homoscedastic - variance constant)'}")
+print(f"  Random Forest p-value: {bp_rf:.4f} {'(Heteroscedastic - variance not constant)' if bp_rf < 0.05 else '(Homoscedastic - variance constant)'}")
+print("\n" + "=" * 80)
+print("ANALYSIS COMPLETE - MAIN.PY EXECUTION FINISHED")
+print("=" * 80)
+print("Summary: Boston Housing Price Prediction using Linear Regression and Random Forest")
+print("All sections have been executed with detailed logging and professional output.")
+print("=" * 80)
