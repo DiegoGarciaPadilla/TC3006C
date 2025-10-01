@@ -13,14 +13,14 @@ parser.add_argument('title', required = True)
 parser.add_argument('uploadDate', type=int, required = False)
 
 # Load video data from file
-with open('flask/lab01/videos.json','r') as f:
+with open('./videos.json','r') as f:
     videos = json.load(f)
 
 # Write changes to file
 def write_changes_to_file():
     global videos
     videos = { k: v for k, v in sorted(videos.items(),key=lambda video: video[1]["uploadDate"] or 0)}
-    with open("flask/lab01/videos.json", 'w') as f:
+    with open("./videos.json", 'w') as f:
         json.dump(videos, f)
 
 # Define resources and endpoints
@@ -103,4 +103,4 @@ api.add_resource(VideoSchedule, "/videos")
 
 # Start server
 if __name__ == "__main__":
-    app.run(debug=True, host="localhost", port=8080)
+    app.run(debug=True, host="localhost", port=8000)
